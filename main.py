@@ -2,7 +2,7 @@
     File: main.py
     Author: Aaron Fortner
     Date: 09/1/2024
-    Version: 0.1
+    Version: 0.3
 
     Description: This file contains the main code for the Wireless Sensor Network (WSN) simulation.
 
@@ -12,6 +12,7 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.spatial import KDTree
 
 # Number of significant digits to round to
 SIGNIFICANT_DIGITS = 2
@@ -139,9 +140,11 @@ class WSN:
         self.mode = mode
         self.input_file = input_file
         self.nodes = []
+        self.kd_tree = None  # Add an attribute for the KD Tree
         self.clusters = [Cluster(i) for i in range(NUM_CLUSTERS)]
         self.generate_nodes()
         self.assign_clusters()
+        self.build_kd_tree()  # Build KD Tree after node generation and assignment
         self.elect_clusterheads()
 
     def generate_nodes(self) -> None:
@@ -219,13 +222,17 @@ class WSN:
         for cluster in self.clusters:
             cluster.elect_clusterhead()
 
+    def build_kd_tree(self):
+        """
+        Build a KD Tree using the positions of the nodes.
+        """
+        if self.nodes:
+            positions = np.array([node.position for node in self.nodes])
+            self.kd_tree = KDTree(positions)
+
     def find_route(self, src_id: int, dest_id: int) -> list[int]:
         """
-        Find a route from the source node to the destination node.
-
-        :param src_id: Source node ID
-        :param dest_id: Destination node ID
-        :return: List of node IDs representing the route if one exists
+        Find a route from the source node to the destination node using a KD Tree for nearest-neighbor search.
         """
         # Get the source and destination nodes, and check if they are valid
         src_node = self.get_node_by_id(src_id)
@@ -240,15 +247,14 @@ class WSN:
         # Set starting node as the current node and iterate until the destination node is reached
         current_node = src_node
         while current_node != dest_node:
-            # Get the nearest node to the destination node within the communication range
-            next_node = self.get_nearest_node(current_node, dest_node)
-            # If no node is found, no route exists. Print a failure message and return an empty list.
-            if not next_node:
+            # Use KD Tree to find the nearest node within the communication range
+            nearest_node = self.get_nearest_node_kdtree(current_node, dest_node)
+            if not nearest_node:
                 print("No route found.")
                 return []
             # If suitable node found, add it to the route and set it as the current node
-            route.append(next_node)
-            current_node = next_node
+            route.append(nearest_node)
+            current_node = nearest_node
 
         return [node.node_id for node in route]
 
@@ -268,6 +274,39 @@ class WSN:
             return None
         # Otherwise, return the candidate node closest to the destination node
         return min(candidates, key=lambda node: node.distance_to(dest_node))
+
+    def get_nearest_node_kdtree(self, current_node: Node, dest_node: Node) -> Node | None:
+        """
+        Use KD Tree to find the node nearest to the destination within the current node's communication range.
+
+        :param current_node: Current node
+        :param dest_node: Destination node
+        :return: Nearest node to the destination node
+        """
+        if not self.kd_tree:
+            return None
+
+        # Query the KD Tree for the k nearest neighbors to the current node (can be large enough like k=10 or more)
+        distances, indices = self.kd_tree.query(current_node.position, k=10)
+
+        # Initialize variables to track the best candidate node
+        best_candidate = None
+        min_dist_to_dest = float('inf')
+
+        # Iterate over the nearest neighbors
+        for dist, idx in zip(distances, indices):
+            candidate_node = self.nodes[idx]
+
+            # Check if the candidate node is within the communication range of the current node
+            if dist <= current_node.r:
+                # Check if this candidate node is closer to the destination than the current best candidate
+                dist_to_dest = candidate_node.distance_to(dest_node)
+                if dist_to_dest < min_dist_to_dest and candidate_node != current_node:
+                    best_candidate = candidate_node
+                    min_dist_to_dest = dist_to_dest
+
+        # Return the node that is closest to the destination and within the communication range
+        return best_candidate
 
     def get_node_by_id(self, node_id: int) -> Node | None:
         """
