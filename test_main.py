@@ -40,7 +40,7 @@ class TestWSN(unittest.TestCase):
         wsn = WSN(mode='random')
         wsn.assign_clusters()
         for node in wsn.nodes:
-            cluster_id = wsn.get_cluster_id(node.position[0], node.position[1])
+            cluster_id = get_cluster_id(node.position[0], node.position[1])
             self.assertIn(node, wsn.clusters[cluster_id].nodes)
 
     def test_routing(self):
