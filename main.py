@@ -19,20 +19,21 @@ from tabulate import tabulate
 
 # TODO: move display functions to HTML/JS?
 
-# Max limits of x and y coordinates
+# Max limits of coordinates
 MAX_COORD = 20
-# Dimensional length of cluster
+# Dimensional length of cluster sides
 CLUSTER_SIZE = 5
 # Number of clusters in the network
 NUM_CLUSTERS = 16
 # Clusters index at 0 or 1? Set to match zero element index
-CLUSTER_INDEX = 1
+CLUSTER_INDEX = 0
 
-# Configure the logging
-logging.basicConfig(
-        level=logging.DEBUG,  # Set the logging level to DEBUG to capture all log messages
-        format='%(asctime)s - %(levelname)s - %(message)s'
-        )  # Customize the format
+# # Configure logging
+# logger = logging.getLogger('WSN')
+# logging.basicConfig(
+#         level=logging.DEBUG,  # Set the logging level to DEBUG to capture all log messages
+#         format='%(asctime)s - %(levelname)s - %(message)s'
+#         )  # Customize the format
 
 
 class Node:
@@ -48,7 +49,7 @@ class Node:
     The node can also be assigned to a cluster and used to calculate the distance to another node.
     """
 
-    def __init__(self, node_id, x, y, r, e, p):
+    def __init__(self, node_id: int, x: int, y: int, r: int, e: int, p: int):
         """
         Initialize a Node instance.
 
@@ -63,15 +64,15 @@ class Node:
         cluster: Cluster the node belongs to
         f: Fitness value to be the cluster head
         """
-        self.node_id = node_id
-        self.position = np.array([x, y])
-        self.r = r
-        self.e = e
-        self.p = p
-        self.cluster = None
+        self.node_id: int = node_id
+        self.position: np.array(int) = np.array([x, y])
+        self.r: int = r
+        self.e: int = e
+        self.p: int = p
+        self.cluster: int | None = None
         self.f = 0.4 * r + 0.4 * e + 0.2 * p
 
-    def distance_to(self, other_node) -> np.floating:
+    def distance_to(self, other_node: 'Node') -> np.floating:
         """
         Calculate the Euclidean distance to another node using numpy's linalg norm function.
 
@@ -130,8 +131,12 @@ class Cluster:
         # Calculate the baseline for the cluster based on the cluster ID: the cluster ID is used to determine the row by
         # dividing by 4 and the column by taking the modulo of 4. The center position is then calculated based on the
         # row and column.
-        row = self.cluster_id // 4
+        # The center position is calculated as follows: Column is determined by cluster ID modulo 4, and row is the
+        # cluster ID divided by 4. The center position is the column number times the cluster size plus half the
+        # cluster size for the x-coordinate, and the row number times the cluster size plus half the cluster size for
+        # the y-coordinate.
         col = self.cluster_id % 4
+        row = self.cluster_id // 4
         center_position = np.array(
                 [(col * CLUSTER_SIZE) + CLUSTER_SIZE / 2, (row * CLUSTER_SIZE) + CLUSTER_SIZE / 2]
                 )
@@ -171,17 +176,15 @@ class WSN:
             # Pick random number of nodes between 10 and 100
             num_nodes = random.randint(10, 100)
             # Generate random nodes with coordinates, communication range, energy level, and processing power.
-            # Round the values to desired number of decimal places.
             for i in range(num_nodes):
-                x = random.uniform(0, 20)
-                y = random.uniform(0, 20)
-                r = random.uniform(1, 8)
-                e = random.uniform(1, 100)
-                p = random.uniform(1, 100)
+                x = random.randint(0, 20)
+                y = random.randint(0, 20)
+                r = random.randint(1, 8)
+                e = random.randint(1, 100)
+                p = random.randint(1, 100)
                 self.nodes.append(Node(i + 1, x, y, r, e, p))
         elif self.mode == 'user':
-            # Read nodes from the input file in user mode, significant digits not specified in job sheet so no rounding
-            # here.
+            # Read nodes from the input file in user mode
             with open(self.input_file, 'r') as file:
                 num_nodes = int(file.readline().strip())
                 for i in range(num_nodes):
@@ -328,8 +331,8 @@ class WSN:
             # Write cluster information
             for cluster in self.clusters:
                 if cluster.nodes:
-                    file.write(f'\nCluster {cluster.cluster_id + 1}:\n')
-                    # print(f'\nCluster {cluster.cluster_id + 1}:')
+                    file.write(f'\nCluster {cluster.cluster_id + CLUSTER_INDEX}:\n')
+                    # print(f'\nCluster {cluster.cluster_id + CLUSTER_INDEX}:')
 
                     node_ids = ", ".join(str(node.node_id) for node in cluster.nodes)
                     file.write(f'Nodes: {node_ids}\n')
@@ -347,19 +350,17 @@ def rank_and_file_calculator(value: float):
     :return: the row or column within which the node resides
     """
     # Calculate the row and column of the node based on the node's coordinates by floor division of the coordinate
-    # by the cluster length and subtract the result of floor division of the coord by the max coord value to reflect
-    # nodes on the outer edge back inside the network grid.
+    # by the cluster length.
+    # Then subtract the result of the floor division of the coord by the max coord value
+    # to reflect nodes on the outer edge back inside the network grid.
     result = int((value // CLUSTER_SIZE) - (value // MAX_COORD))
 
     # If the node is on the border between two segments, randomly assign it to one of the two adjacent segments.
-    # If the node is at edge of the network, keep the segment the same.  The adjustment is made by adding one to the
-    # natural fall of nodes if indexed at 1 or by subtracting one for index at zero
+    # If the node is at the outside edge of the network, keep the segment the same.
+    # The adjustment is made by subtracting one from the result.
     if value % CLUSTER_SIZE == 0 and value != 0 and value != 20:
         if random.choice([True, False]):
-            if CLUSTER_INDEX:
-                result += 1
-            else:
-                result -= 1
+            result -= 1
     return result
 
 
@@ -381,7 +382,7 @@ def get_cluster_id(x: float, y: float) -> int:
     # so if the node is in row 0, col 0, and indexed at 0 the cluster ID is 0 (0 * 4 + 0 + 0), if its in row 3,
     # col 1, and indexed at 1 the cluster ID is 14 (3 * 4 + 1 + 1).
     cluster = row * 4 + col
-    logging.debug(f"node @ {x},{y} : {col},{row} assigned to cluster {cluster}")
+    # logger.debug(f"node @ {x},{y} : {col},{row} assigned to cluster {cluster}")
     return cluster
 
 
@@ -410,7 +411,7 @@ def display_network_info(wsn):
     node_headers = ['Node ID', 'X Position', 'Y Position', 'Range (R)', 'Energy (E)', 'Processing Power (P)',
                     'Fitness (F)']
 
-    print("\nNode Information: (note all values are rounded to 2 decimal places for display)")
+    print("\nNode Information:")
     print(tabulate(node_data, headers=node_headers, tablefmt="grid"))
 
     # Display cluster information
@@ -421,7 +422,7 @@ def display_network_info(wsn):
             clusterhead = cluster.clusterhead.node_id if cluster.clusterhead else "None"
             cluster_data.append(
                     [
-                            cluster.cluster_id,
+                            cluster.cluster_id + CLUSTER_INDEX,
                             cluster_nodes,
                             clusterhead
                             ]
@@ -456,9 +457,8 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
         ax.axvline(x=pos, color='green', linestyle='-', linewidth=1)
 
     # Store positions for line plotting if connect is True
-    if connect:
-        x_coords: list[float] = []
-        y_coords: list[float] = []
+    x_coords: list[float] = []
+    y_coords: list[float] = []
 
     # Plot each node
     for node in nodes:
@@ -486,7 +486,7 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
         center_node = cluster.center()
         ax.text(
                 center_node.position[0], center_node.position[1],
-                f'Cluster {cluster.cluster_id + 1}', color='green', fontsize=10, ha='center'
+                f'Cluster {cluster.cluster_id + CLUSTER_INDEX}', color='green', fontsize=10, ha='center'
                 )
 
     ax.set_xlabel('X')
@@ -495,7 +495,7 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
 
     plt.grid(True)
     plt.draw()  # Draw the plot but don't block
-    plt.pause(0.001)  # Pause briefly to ensure plot is updated but non-blocking
+    plt.pause(0.001)  # Pause briefly to ensure the plot is updated but non-blocking
 
 
 def main() -> None:
