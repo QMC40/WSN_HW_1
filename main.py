@@ -1,15 +1,17 @@
 """
     File: main.py
     Author: Aaron Fortner
-    Date: 09/1/2024
-    Version: 0.3
+    Date: 09/8/2024
+    Version: 0.4
 
     Description: This file contains the main code for the Wireless Sensor Network (WSN) simulation.
 
     See the main README.md file for detailed information, installation instructions, and usage.
 """
-
+import logging
 import random
+from multiprocessing.util import debug
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
@@ -17,12 +19,20 @@ from tabulate import tabulate
 
 # TODO: move display functions to HTML/JS?
 
-# Number of significant digits to round to
-SIGNIFICANT_DIGITS = 2
+# Max limits of x and y coordinates
+MAX_COORD = 20
 # Dimensional length of cluster
 CLUSTER_SIZE = 5
 # Number of clusters in the network
 NUM_CLUSTERS = 16
+# Clusters index at 0 or 1? Set to match zero element index
+CLUSTER_INDEX = 1
+
+# Configure the logging
+logging.basicConfig(
+        level=logging.DEBUG,  # Set the logging level to DEBUG to capture all log messages
+        format='%(asctime)s - %(levelname)s - %(message)s'
+        )  # Customize the format
 
 
 class Node:
@@ -59,7 +69,7 @@ class Node:
         self.e = e
         self.p = p
         self.cluster = None
-        self.f = round(0.4 * r + 0.4 * e + 0.2 * p, SIGNIFICANT_DIGITS)
+        self.f = 0.4 * r + 0.4 * e + 0.2 * p
 
     def distance_to(self, other_node) -> np.floating:
         """
@@ -93,7 +103,7 @@ class Cluster:
         :param node: The node to add to the cluster
         """
         self.nodes.append(node)
-        node.cluster = self
+        node.cluster = self.cluster_id
 
     def elect_clusterhead(self) -> Node | None:
         """
@@ -123,8 +133,8 @@ class Cluster:
         row = self.cluster_id // 4
         col = self.cluster_id % 4
         center_position = np.array(
-            [(col * CLUSTER_SIZE) + CLUSTER_SIZE / 2, (row * CLUSTER_SIZE) + CLUSTER_SIZE / 2]
-            )
+                [(col * CLUSTER_SIZE) + CLUSTER_SIZE / 2, (row * CLUSTER_SIZE) + CLUSTER_SIZE / 2]
+                )
         return Node(-1, center_position[0], center_position[1], 0, 0, 0)
 
 
@@ -133,6 +143,7 @@ class WSN:
     Class to represent a Wireless Sensor Network (WSN).
     """
 
+    # TODO: something is wrong in cluster assignment
     def __init__(self, mode='random', input_file='input.txt'):
         """
         Initialize a WSN instance.
@@ -145,6 +156,8 @@ class WSN:
         self.nodes = []
         self.kd_tree = None  # Add an attribute for the KD Tree
         self.clusters = [Cluster(i) for i in range(NUM_CLUSTERS)]
+
+        # Generate nodes and build the KD tree
         self.generate_nodes()
         self.assign_clusters()
         self.build_kd_tree()  # Build KD Tree after node generation and assignment
@@ -160,11 +173,11 @@ class WSN:
             # Generate random nodes with coordinates, communication range, energy level, and processing power.
             # Round the values to desired number of decimal places.
             for i in range(num_nodes):
-                x = round(random.uniform(0, 20), SIGNIFICANT_DIGITS)
-                y = round(random.uniform(0, 20), SIGNIFICANT_DIGITS)
-                r = round(random.uniform(1, 8), SIGNIFICANT_DIGITS)
-                e = round(random.uniform(1, 100), SIGNIFICANT_DIGITS)
-                p = round(random.uniform(1, 100), SIGNIFICANT_DIGITS)
+                x = random.uniform(0, 20)
+                y = random.uniform(0, 20)
+                r = random.uniform(1, 8)
+                e = random.uniform(1, 100)
+                p = random.uniform(1, 100)
                 self.nodes.append(Node(i + 1, x, y, r, e, p))
         elif self.mode == 'user':
             # Read nodes from the input file in user mode, significant digits not specified in job sheet so no rounding
@@ -181,41 +194,8 @@ class WSN:
         """
         # Iterate through all nodes and assign them to the appropriate cluster based on their coordinates.
         for node in self.nodes:
-            cluster_id = self.get_cluster_id(node.position[0], node.position[1])
+            cluster_id = get_cluster_id(node.position[0], node.position[1])
             self.clusters[cluster_id].add_node(node)
-
-    def get_cluster_id(self, x: float, y: float) -> int:
-        """
-        Get the cluster ID based on the coordinates of a node.
-
-        :param x: X-coordinate of the node
-        :param y: Y-coordinate of the node
-        :return cluster_id: Cluster ID based on the coordinates
-        """
-        # Calculate the row and column of the cluster based on the node's coordinates
-        col = int(x // CLUSTER_SIZE)
-        # If the node is on the border of a cluster, randomly assign it to one of the two adjacent clusters.
-        # If the node is at edge of the network, keep the column the same.
-        # Column classifier
-        if x % CLUSTER_SIZE == 0 and x != 0 and x != 20:
-            if random.choice([True, False]):
-                col += 1
-            else:
-                col -= 1
-        # Row classifier
-        row = int(y // CLUSTER_SIZE)
-        # If the node is on the border of a cluster, randomly assign it to one of the two adjacent clusters.
-        # If the node is at edge of the network, keep the row the same.
-        if y % CLUSTER_SIZE == 0 and y != 0 and y != 20:
-            if random.choice([True, False]):
-                row += 1
-            else:
-                row -= 1
-        # Return the cluster ID based on the row and column of the cluster.
-        # The clusters are numbered from left to right and top to bottom starting from 0,
-        # so the cluster ID is calculated as row * 4 + col, where 4 is the number of columns per row:
-        # if in row 0, col 0, cluster ID is 0, if in row 3, col 1, cluster ID is 13, etc.
-        return row * 4 + col
 
     def elect_clusterheads(self) -> None:
         """
@@ -233,80 +213,84 @@ class WSN:
             positions = np.array([node.position for node in self.nodes])
             self.kd_tree = KDTree(positions)
 
+    # TODO: check routing in same cluster, doesn't seem to work
     def find_route(self, src_id: int, dest_id: int) -> list[int]:
         """
-        Find a route from the source node to the destination node using a KD Tree for nearest-neighbor search.
-        Implements visited node tracking and hop count limitation to avoid infinite loops.
+        Find a route from the source node to the destination node.
+
+        :param src_id: Source node ID.
+        :param dest_id: Destination node ID.
+        :return: List of node IDs representing the route, or an empty list if no route is found.
         """
         src_node = self.get_node_by_id(src_id)
         dest_node = self.get_node_by_id(dest_id)
+
         if not src_node or not dest_node:
             print("Invalid source or destination node.")
             return []
 
+        # Start the route with the source node
         route = [src_node]
         current_node = src_node
-        visited = set()  # Track visited nodes
-        hop_count = 0
-        max_hops = 20  # Set a maximum hop count to avoid infinite loops
+        last_node = None
+        visited = set()  # Track visited nodes to avoid loops
 
         while current_node != dest_node:
-            if hop_count > max_hops:
-                print("Max hop count exceeded, terminating route.")
-                return []
-
             visited.add(current_node.node_id)
 
-            # Get the nearest node to the destination within the communication range
-            nearest_node = self.get_nearest_node_kdtree(current_node, dest_node)
+            # Get the nearest node to the destination within the current node's transmission range
+            next_node = self.get_nearest_node_kdtree(current_node, dest_node, last_node)
 
-            if not nearest_node:
-                print("No route found.")
-                return []
+            if not next_node:
+                # if not next_node or next_node.node_id in visited:
+                print("No valid route found.")
+                return []  # Return an empty route if no valid next node is found or if stuck in a loop
 
-            # Prevent revisiting nodes
-            if nearest_node.node_id in visited:
-                print(f"Node {nearest_node.node_id} has been visited, skipping to avoid loop.")
-                return []
+            # Add the next node to the route and continue routing from that node
+            route.append(next_node)
+            last_node = current_node
+            current_node = next_node
 
-            # Add the next node to the route and set it as the current node
-            route.append(nearest_node)
-            current_node = nearest_node
-            hop_count += 1
-
+        # Return the final route as a list of node IDs
         return [node.node_id for node in route]
 
-    def get_nearest_node_kdtree(self, current_node: Node, dest_node: Node) -> Node | None:
+    def get_nearest_node_kdtree(self, current_node: Node, dest_node: Node, last_node: Node) -> Node | None:
         """
-        Use KD Tree to find the node nearest to the destination within the current node's communication range.
+        Use KD Tree to find all nodes within the current node's communication range (radius search).
+        From those nodes, find the one closest to the destination.
 
-        :param current_node: Current node
-        :param dest_node: Destination node
-        :return: Nearest node to the destination node
+        :param current_node: The node currently sending the packet.
+        :param dest_node: The final destination node for the packet.
+        :param last_node: The last node visited in the route.
+        :return: The node within range closest to the destination, or None if no node is found.
         """
         if not self.kd_tree:
             return None
 
-        # Query the KD Tree for the k nearest neighbors to the current node (can be large enough like k=10 or more)
-        distances, indices = self.kd_tree.query(current_node.position, k=10)
+        # Radius search: Find all nodes within the current node's transmission range
+        radius = current_node.r
+        neighbors_within_range = self.kd_tree.query_ball_point(current_node.position, r=radius)
 
         # Initialize variables to track the best candidate node
         best_candidate = None
         min_dist_to_dest = float('inf')
 
-        # Iterate over the nearest neighbors
-        for dist, idx in zip(distances, indices):
+        # Iterate over all neighboring nodes within the radius
+        for idx in neighbors_within_range:
             candidate_node = self.nodes[idx]
 
-            # print(f'Checking node {candidate_node.node_id} at distance {dist} from current node {current_node.node_id}')
+            # Ignore the current node itself and the last node visited
+            if candidate_node == current_node:
+                # if candidate_node == current_node or candidate_node == last_node:
+                continue
 
-            # Check if the candidate node is within the communication range of the current node
-            if dist <= current_node.r:
-                # Check if this candidate node is closer to the destination than the current best candidate
-                dist_to_dest = candidate_node.distance_to(dest_node)
-                if dist_to_dest < min_dist_to_dest and candidate_node != current_node:
-                    best_candidate = candidate_node
-                    min_dist_to_dest = dist_to_dest
+            # Check the distance from the candidate node to the destination
+            dist_to_dest = candidate_node.distance_to(dest_node)
+
+            # If this candidate is closer to the destination, select it
+            if dist_to_dest < min_dist_to_dest:
+                best_candidate = candidate_node
+                min_dist_to_dest = dist_to_dest
 
         # Return the node that is closest to the destination and within the communication range
         return best_candidate
@@ -356,6 +340,51 @@ class WSN:
                         # print(f'Clusterhead: {cluster.clusterhead.node_id}')
 
 
+def rank_and_file_calculator(value: float):
+    """
+    Calculates the correct row or column of the network grid of a node
+    :param value: the relevant coordinate for the node being located
+    :return: the row or column within which the node resides
+    """
+    # Calculate the row and column of the node based on the node's coordinates by floor division of the coordinate
+    # by the cluster length and subtract the result of floor division of the coord by the max coord value to reflect
+    # nodes on the outer edge back inside the network grid.
+    result = int((value // CLUSTER_SIZE) - (value // MAX_COORD))
+
+    # If the node is on the border between two segments, randomly assign it to one of the two adjacent segments.
+    # If the node is at edge of the network, keep the segment the same.  The adjustment is made by adding one to the
+    # natural fall of nodes if indexed at 1 or by subtracting one for index at zero
+    if value % CLUSTER_SIZE == 0 and value != 0 and value != 20:
+        if random.choice([True, False]):
+            if CLUSTER_INDEX:
+                result += 1
+            else:
+                result -= 1
+    return result
+
+
+def get_cluster_id(x: float, y: float) -> int:
+    """
+    Get the cluster ID based on the coordinates of a node.
+
+    :param x: X-coordinate of the node
+    :param y: Y-coordinate of the node
+    :return cluster_id: Cluster ID based on the coordinates
+    """
+    # Call rank and file calc to determine the row and col containing the node
+    col = rank_and_file_calculator(x)
+    row = rank_and_file_calculator(y)
+
+    # Return the cluster ID based on the row and column of the cluster.
+    # The clusters are numbered from left to right and top to bottom starting from 0 or 1 depending on indexing,
+    # so the cluster ID is calculated as row * 4 + col + CLUSTER_INDEX, where 4 is the number of columns per row:
+    # so if the node is in row 0, col 0, and indexed at 0 the cluster ID is 0 (0 * 4 + 0 + 0), if its in row 3,
+    # col 1, and indexed at 1 the cluster ID is 14 (3 * 4 + 1 + 1).
+    cluster = row * 4 + col
+    logging.debug(f"node @ {x},{y} : {col},{row} assigned to cluster {cluster}")
+    return cluster
+
+
 def display_network_info(wsn):
     """
     Display the nodes and cluster information in a table format using the tabulate library.
@@ -365,15 +394,17 @@ def display_network_info(wsn):
     # Display node information
     node_data = []
     for node in wsn.nodes:
-        node_data.append([
-                node.node_id,
-                node.position[0],
-                node.position[1],
-                node.r,
-                node.e,
-                node.p,
-                node.f
-                ])
+        node_data.append(
+                [
+                        node.node_id,
+                        node.position[0],
+                        node.position[1],
+                        node.r,
+                        node.e,
+                        node.p,
+                        node.f
+                        ]
+                )
 
     # Define headers for node table
     node_headers = ['Node ID', 'X Position', 'Y Position', 'Range (R)', 'Energy (E)', 'Processing Power (P)',
@@ -388,11 +419,13 @@ def display_network_info(wsn):
         if cluster.nodes:
             cluster_nodes = ", ".join(str(node.node_id) for node in cluster.nodes)
             clusterhead = cluster.clusterhead.node_id if cluster.clusterhead else "None"
-            cluster_data.append([
-                    cluster.cluster_id + 1,  # Display cluster ID (starting from 1 for user clarity)
-                    cluster_nodes,
-                    clusterhead
-                    ])
+            cluster_data.append(
+                    [
+                            cluster.cluster_id,
+                            cluster_nodes,
+                            clusterhead
+                            ]
+                    )
 
     # Define headers for cluster table
     cluster_headers = ['Cluster ID', 'Nodes in Cluster', 'Clusterhead']
@@ -409,7 +442,7 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
     :param connect: Boolean flag to connect the nodes with lines for routing plot
     :param title: Title of the plot
     """
-    plt.ion()  # Enable interactive mode for non-blocking plots
+    # plt.ion()  # Enable interactive mode for non-blocking plots
 
     fig, ax = plt.subplots()
 
@@ -451,8 +484,10 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
     # Add labels for each cluster at the center in green
     for cluster in clusters:
         center_node = cluster.center()
-        ax.text(center_node.position[0], center_node.position[1],
-                f'Cluster {cluster.cluster_id + 1}', color='green', fontsize=10, ha='center')
+        ax.text(
+                center_node.position[0], center_node.position[1],
+                f'Cluster {cluster.cluster_id + 1}', color='green', fontsize=10, ha='center'
+                )
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y', rotation=0)
@@ -460,7 +495,7 @@ def plot_nodes(nodes, clusters, connect=False, title='WSN Nodes and Their Radio 
 
     plt.grid(True)
     plt.draw()  # Draw the plot but don't block
-    plt.pause(0.001)  # Pause briefly to ensure plot is updated but non-blockin
+    plt.pause(0.001)  # Pause briefly to ensure plot is updated but non-blocking
 
 
 def main() -> None:
@@ -468,6 +503,10 @@ def main() -> None:
     Main function to run the WSN simulation.
     """
     print("Welcome to WSN Simulation!")
+
+    # Ask the user if they want to plot the nodes and their radio ranges
+    plot = input("Do you want to plot the nodes and their radio ranges? (y/n, default 'n'): ").strip().lower() == 'y'
+
     # Inside infinite loop, Create a WSN instance based on the user's choice and save the network configuration
     while True:
         print("\nChoose mode of operation:")
@@ -492,8 +531,9 @@ def main() -> None:
         # Display network information in table format
         display_network_info(wsn)
 
-        # Plot the nodes and their radio ranges, and include cluster labels
-        plot_nodes(wsn.nodes, wsn.clusters)
+        if plot:
+            # Plot the nodes and their radio ranges, and include cluster labels
+            plot_nodes(wsn.nodes, wsn.clusters)
 
         print("Packet routing simulation:")
 
@@ -529,11 +569,14 @@ def main() -> None:
             # Print the route if it exists and ask the user if they want to route another packet or quit
             if route:
                 print(f'Route: {" -> ".join(map(str, route))}')
-                plot_nodes([wsn.get_node_by_id(node_id) for node_id in route],
-                           wsn.clusters,
-                           connect=True,
-                           title=f'Packet Route from Node {src_id} to Node {dest_id}'
-                           )
+                if plot:
+                    # Plot the nodes and their radio ranges with the route connected
+                    plot_nodes(
+                            [wsn.get_node_by_id(node_id) for node_id in route],
+                            wsn.clusters,
+                            connect=True,
+                            title=f'Packet Route from Node {src_id} to Node {dest_id}'
+                            )
 
             # Validate input for y/n and default to 'y'
             while True:
