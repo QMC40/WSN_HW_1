@@ -1,0 +1,51 @@
+
+### Objectives:
+1. [ ] Reinforce basic concepts of wireless sensor networks.
+2. [ ] Simulate a clustered WSN.
+3. [ ] Implement basic routing in WSN.
+
+### Program Functionality:
+- [ ] Simulate a WSN in a 20mx20m area with 16 predetermined 5mx5m clusters.
+- [ ] Implement two modes of operation: random mode and user mode.
+- [ ] In **random mode**:
+  - [ ] Randomly generate a number of nodes between 10-100.
+  - [ ] Randomly assign node characteristics: 
+    - [ ] (x,y) coordinates (x=0-20, y=0-20)
+    - [ ] Radio range R (R=1-8 m)
+    - [ ] Energy level E (E=1-100)
+    - [ ] Processing power P (P=1-100)
+  - [ ] Assign nodes to the appropriate clusters based on their coordinates.
+  - [ ] Elect a clusterhead using the formula: F = 0.4R + 0.4E + 0.2P.
+  - [ ] Handle ties by selecting the node closest to the cluster center.
+- [ ] In **user mode**:
+  - [ ] Read node data from an `input.txt` file in the specified format.
+  - [ ] Output the network data to `network.txt` in the specified format.
+  
+### Routing:
+- [ ] Implement GREEDY intuitive routing (route packets to the nearest node within radio range).
+- [ ] Allow the user to specify a source and destination for routing.
+- [ ] Output the resulting route (series of hops) to the screen using node IDs.
+
+### User Interface:
+- [ ] Provide a command-line menu for choosing the mode of operation (random or user mode).
+- [ ] Continuously display the menu until the user chooses to quit.
+- [ ] Clear the contents of `network.txt` with each run.
+
+### Output:
+- [ ] Write the characteristics of the network to `network.txt` in the format:
+  - [ ] Number of nodes.
+  - [ ] Node characteristics for each node (coordinates, R, E, P).
+  - [ ] Residency of each cluster and elected clusterhead.
+  - [ ] Routing path for the given source and destination.
+- [ ] Display the route and residency information on the screen.
+
+### Deliverables:
+- [ ] Working software program.
+- [ ] Source files.
+- [ ] Readme file explaining how to run the program.
+- [ ] Exclude `input.txt` from the submission.
+
+### Grading Criteria:
+- [ ] Program correctness (75 points).
+- [ ] Program design (15 points).
+- [ ] Style and documentation (10 points).
