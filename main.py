@@ -202,10 +202,10 @@ class WSN:
         self.kd_tree = None  # Add an attribute for the KD Tree
         self.clusters = [Cluster(i) for i in range(NUM_CLUSTERS)]
 
-        # Generate nodes and build the KD tree
+        # Generate nodes, assign clusters and build the KD tree then elect cluster heads
         self.generate_nodes()
         self.assign_clusters()
-        self.build_kd_tree()  # Build KD Tree after node generation and assignment
+        self.build_kd_tree()
         self.elect_clusterheads()
 
     def generate_nodes(self) -> None:
@@ -214,10 +214,7 @@ class WSN:
         """
         if self.mode == 'random':
             # Pick random number of nodes between 10 and 100
-            # TODO: test to minimize time, set to 15 for now for testing **********************************************
-            #  ********************************************************************************************************
-            num_nodes = 15
-            # num_nodes = random.randint(10, 100)
+            num_nodes = random.randint(10, 100)
             # Generate random nodes with coordinates, communication range, energy level, and processing power.
             for i in range(num_nodes):
                 while True:
@@ -246,14 +243,15 @@ class WSN:
             with open(self.input_file, 'r') as file:
                 num_nodes = int(file.readline().strip())
                 for i in range(num_nodes):
-                    x, y, r, e, p = map(int, file.readline().strip().split())
+                    x, y, r, e, p = map(float, file.readline().strip().split())
                     # check for duplication of existing node at those coords, reject if found, otherwise finish
                     # construction of candidate node and save to the network
                     # Check for duplication of existing node at those coordinates
                     dupe_node = not any(node.position[0] == x and node.position[1] == y for node in self.nodes)
 
                     if dupe_node:
-                        self.nodes.append(Node(i, x, y, r, e, p))
+                        # If no duplicate found, add the new node, otherwise skip the node. R, E, and P are cast to int
+                        self.nodes.append(Node(i, x, y, int(r), int(e), int(p)))
                         logger.debug(f"Node {i} @ ({x}, {y}) with R={r}, E={e}, P={p} added to the network.")
                     else:
                         print(f"Node @ coordinates ({x}, {y}) already exists in user input. Skipping...")
@@ -285,7 +283,6 @@ class WSN:
             positions = np.array([node.position for node in self.nodes])
             self.kd_tree = KDTree(positions)
 
-    # TODO: check routing in same cluster, doesn't seem to work
     def find_route(self, src_id: int, dest_id: int) -> list[int]:
         """
         Find a route from the source node to the destination node.
@@ -294,13 +291,13 @@ class WSN:
         :param dest_id: Destination node ID.
         :return: List of node IDs representing the route, or an empty list if no route is found.
         """
-        # Get the source and destination nodes, subtract NODE_INDEX from the IDs to match the indexing of the nodes
-        # list
 
-        if self.kd_tree.size <= 1:
+        # Check if the network has less than two nodes, in which case no routing can be performed
+        if self.kd_tree.tree.children <= 1:
             print("Network has less than two nodes in the network. No routing can be performed.")
             return []
 
+        # Get the source and destination nodes
         src_node = self.get_node_by_id(src_id - NODE_INDEX)
         dest_node = self.get_node_by_id(dest_id - NODE_INDEX)
 
@@ -309,6 +306,7 @@ class WSN:
         current_node = src_node
         already_visited = set()  # Track visited nodes to avoid loops
 
+        # Continue routing until the destination node is reached
         while current_node != dest_node:
             already_visited.add(current_node.node_id)
 
@@ -327,7 +325,7 @@ class WSN:
         # Return the final route as a list of node IDs
         return [node.node_id for node in route]
 
-    def get_nearest_node_kdtree(self, current_node: Node, dest_node: Node, visited: set[Node]) -> Node | None:
+    def get_nearest_node_kdtree(self, current_node: Node, dest_node: Node, visited: set[int]) -> Node | None:
         """
         Use KD Tree to find all nodes within the current node's communication range (radius search).
         From those nodes, find the one closest to the destination.
@@ -344,29 +342,30 @@ class WSN:
 
         # Check if the destination node is within the current node's transmission range
         if dest_node.node_id in neighbors_within_range:
+            logger.debug(f"Destination node {dest_node.node_id} is within range of node {current_node.node_id}.")
             return dest_node
+
+        logger.debug(f"Neighbors within range of node {current_node.node_id}: {neighbors_within_range}")
 
         # Remove the current node and any nodes already visited from the list of neighbors to prevent revisiting and
         # loops in the path
         neighbors_within_range = [node for node in neighbors_within_range if node not in visited]
 
+        logger.debug(f"Neighbors within range after removing current and visited nodes: {neighbors_within_range}")
+
         # If no neighbors are within range, return None
         if not neighbors_within_range:
             return None
 
-        # max_fitness = max(node.f for node in self.nodes)
-        # Find the closest node to the destination from the list of neighbors within range
-        closest = min(neighbors_within_range, key=lambda idx: self.nodes[idx].distance_to(dest_node))
-
-        # Sort neighbors by distance to the destination node
+        # Sort neighbors by distance to the destination node and extract the nearest node
         neighbors_within_range.sort(key=lambda idx: self.nodes[idx].distance_to(dest_node))
+        selected_node = self.nodes[neighbors_within_range[0]]
 
-        closest2 = self.nodes[neighbors_within_range[0]]
-
-        logging.debug(f"closest == closest2: {closest == closest2}")
+        logger.debug(f"Sorted neighbors within range: {neighbors_within_range}")
+        logger.debug(f"Closest node to destination: {selected_node.node_id}")
 
         # return the nearest node to the destination from the list of neighbors within range
-        return self.nodes[neighbors_within_range[0]]
+        return selected_node
 
     def get_node_by_id(self, node_id: int) -> Node | None:
         """
@@ -394,23 +393,19 @@ class WSN:
 
             # Write details of each node
             for node in self.nodes:
-                node_info = f'{node.position[0]}\t{node.position[1]}\t{node.r}\t{node.e}\t{node.p}'
+                node_info = f'{int(node.position[0])}\t{int(node.position[1])}\t{node.r}\t{node.e}\t{node.p}'
                 file.write(f'{node_info}\n')
-                # print(node_info)
 
             # Write cluster information
             for cluster in self.clusters:
                 if cluster.nodes:
                     file.write(f'\nCluster {cluster.cluster_id + CLUSTER_INDEX}:\n')
-                    # print(f'\nCluster {cluster.cluster_id + CLUSTER_INDEX}:')
 
                     node_ids = ", ".join(str(node.node_id) for node in cluster.nodes)
                     file.write(f'Nodes: {node_ids}\n')
-                    # print(f'Nodes: {node_ids}')
 
                     if cluster.clusterhead:
                         file.write(f'Clusterhead: {cluster.clusterhead.node_id}\n')
-                        # print(f'Clusterhead: {cluster.clusterhead.node_id}')
 
 
 def get_cluster_id(x: int, y: int) -> int:
@@ -431,7 +426,7 @@ def get_cluster_id(x: int, y: int) -> int:
     # so if the node is in row 0, col 0, and indexed at 0 the cluster ID is 0 (0 * 4 + 0 + 0), if its in row 3,
     # col 1, and indexed at 1 the cluster ID is 14 (3 * 4 + 1 + 1).
     cluster = row * 4 + col
-    # logger.debug(f"node @ {x},{y} : {col},{row} assigned to cluster {cluster}")
+    logger.debug(f"node @ {x},{y} : {col},{row} assigned to cluster {cluster}")
     return cluster
 
 
