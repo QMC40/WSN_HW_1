@@ -10,15 +10,12 @@
 """
 import logging
 import random
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
 from tabulate import tabulate
 
-# TODO: move display functions to HTML/JS?
-
-# Constants
+# Constant values
 # Logging switch
 LOGGING = True
 # Max limits of coordinates
@@ -175,7 +172,7 @@ class Cluster:
         # cluster ID divided by 4. The center position is the column number times the cluster size plus half the
         # cluster size for the x-coordinate, and the row number times the cluster size plus half the cluster size for
         # the y-coordinate.
-        # calculate the column and row of the cluster
+        # Calculate the column and row of the cluster
         col = self.cluster_id % 4
         row = self.cluster_id // 4
         center_position = np.array(
@@ -214,7 +211,8 @@ class WSN:
         """
         if self.mode == 'random':
             # Pick random number of nodes between 10 and 100
-            num_nodes = random.randint(10, 100)
+            # num_nodes = random.randint(10, 100)
+            num_nodes = 10
             # Generate random nodes with coordinates, communication range, energy level, and processing power.
             for i in range(num_nodes):
                 while True:
