@@ -1,81 +1,111 @@
-16
-2	2	8	10	10
-7	2	8	10	10
-12	2	8	10	10
-17	2	8	10	10
-2	7	8	10	10
-7	7	8	10	10
-12	7	8	10	10
-17	7	8	10	10
-2	12	8	10	10
-7	12	8	10	10
-12	12	8	10	10
-17	12	8	10	10
-2	17	8	10	10
-7	17	8	10	10
-12	17	8	10	10
-17	17	8	10	10
-
-Cluster 0:
-Nodes: 0
-Clusterhead: 0
+46
+6	18	4	75	97
+7	0	5	30	25
+6	0	1	4	78
+12	0	6	63	78
+12	17	1	10	86
+19	19	1	71	31
+17	2	4	6	92
+3	13	8	73	92
+4	5	4	89	18
+16	2	6	91	62
+1	19	3	83	24
+0	19	2	16	99
+5	2	6	90	66
+7	13	7	33	37
+18	15	3	89	58
+13	6	8	95	88
+4	16	5	84	56
+17	18	3	86	53
+11	10	7	68	50
+14	15	3	46	11
+8	10	2	97	48
+2	12	5	9	84
+2	9	4	97	94
+20	13	5	38	64
+4	3	5	99	9
+8	4	4	95	66
+5	0	3	6	72
+19	3	1	96	99
+7	1	4	68	43
+7	15	5	57	24
+8	19	2	45	38
+12	3	8	92	85
+9	7	2	74	25
+13	1	4	12	68
+8	9	3	55	21
+11	14	4	17	72
+10	5	5	18	28
+10	1	5	34	80
+4	20	2	37	36
+0	3	1	88	91
+5	14	6	39	86
+13	8	4	84	25
+16	10	2	4	25
+14	0	7	49	49
+12	20	8	28	13
+16	11	5	84	47
 
 Cluster 1:
-Nodes: 1
-Clusterhead: 1
+Nodes: 9, 13, 25, 27, 40
+Clusterhead: 40
 
 Cluster 2:
-Nodes: 2
-Clusterhead: 2
+Nodes: 2, 3, 26, 29, 38
+Clusterhead: 26
 
 Cluster 3:
-Nodes: 3
-Clusterhead: 3
+Nodes: 4, 32, 34, 44
+Clusterhead: 32
 
 Cluster 4:
-Nodes: 4
-Clusterhead: 4
+Nodes: 7, 10, 28
+Clusterhead: 28
 
 Cluster 5:
-Nodes: 5
-Clusterhead: 5
+Nodes: 23
+Clusterhead: 23
 
 Cluster 6:
-Nodes: 6
-Clusterhead: 6
+Nodes: 21, 33, 35
+Clusterhead: 21
 
 Cluster 7:
-Nodes: 7
-Clusterhead: 7
+Nodes: 16, 37, 42
+Clusterhead: 16
 
 Cluster 8:
-Nodes: 8
-Clusterhead: 8
+Nodes: 43
+Clusterhead: 43
 
 Cluster 9:
-Nodes: 9
-Clusterhead: 9
+Nodes: 8, 22, 41
+Clusterhead: 8
 
 Cluster 10:
-Nodes: 10
-Clusterhead: 10
-
-Cluster 11:
-Nodes: 11
-Clusterhead: 11
-
-Cluster 12:
-Nodes: 12
-Clusterhead: 12
-
-Cluster 13:
-Nodes: 13
-Clusterhead: 13
-
-Cluster 14:
 Nodes: 14
 Clusterhead: 14
 
+Cluster 11:
+Nodes: 19, 36
+Clusterhead: 19
+
+Cluster 12:
+Nodes: 24, 46
+Clusterhead: 46
+
+Cluster 13:
+Nodes: 11, 12, 17, 39
+Clusterhead: 17
+
+Cluster 14:
+Nodes: 1, 30, 31
+Clusterhead: 1
+
 Cluster 15:
-Nodes: 15
+Nodes: 5, 20, 45
+Clusterhead: 20
+
+Cluster 16:
+Nodes: 6, 15, 18
 Clusterhead: 15
