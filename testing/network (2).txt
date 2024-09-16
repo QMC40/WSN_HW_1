@@ -1,0 +1,56 @@
+15
+19 20 8 55 83
+2 11 2 71 72
+14 9 5 38 70
+3 17 5 2 77
+16 7 5 69 91
+0 13 1 35 66
+6 9 8 15 66
+12 0 6 1 79
+9 2 7 45 63
+7 12 4 9 8
+0 12 8 96 82
+3 16 8 83 29
+15 12 6 50 14
+11 6 6 41 94
+3 12 8 81 25
+
+Cluster 1:
+Nodes: 8
+Clusterhead: 8
+
+Cluster 2:
+Nodes: 7
+Clusterhead: 7
+
+Cluster 5:
+Nodes: 6
+Clusterhead: 6
+
+Cluster 6:
+Nodes: 2, 13
+Clusterhead: 13
+
+Cluster 7:
+Nodes: 4
+Clusterhead: 4
+
+Cluster 8:
+Nodes: 1, 5, 10, 14
+Clusterhead: 10
+
+Cluster 9:
+Nodes: 9
+Clusterhead: 9
+
+Cluster 10:
+Nodes: 12
+Clusterhead: 12
+
+Cluster 12:
+Nodes: 3, 11
+Clusterhead: 11
+
+Cluster 15:
+Nodes: 0
+Clusterhead: 0

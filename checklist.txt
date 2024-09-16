@@ -1,4 +1,3 @@
-
 ### Objectives:
 1. [ ] Reinforce basic concepts of wireless sensor networks.
 2. [ ] Simulate a clustered WSN.
