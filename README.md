@@ -1,6 +1,6 @@
 # Wireless Sensor Network (WSN) Simulation
 
-**Author**: QMC40 
+**Author**: QMC40   
 **Date**: 09/15/2024  
 **Version**: 0.5
 
