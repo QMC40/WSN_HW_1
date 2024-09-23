@@ -9,8 +9,11 @@
     See the main README.md file for detailed information, installation instructions, and usage.
 """
 import unittest
-import numpy as np
-from main import Node, Cluster, WSN, get_cluster_id
+
+import wsn
+from wsn import WSN
+from node import Node
+from cluster import Cluster
 
 
 class TestWSN(unittest.TestCase):
@@ -89,7 +92,7 @@ class TestWSN(unittest.TestCase):
         """Test that nodes are correctly assigned to clusters based on their coordinates."""
         self.wsn.assign_clusters()
         for node in self.wsn.nodes:
-            cluster_id = get_cluster_id(node.position[0], node.position[1], node.node_id)
+            cluster_id = wsn.get_cluster_id(node.position[0], node.position[1], node.node_id)
             self.assertIn(node, self.wsn.clusters[cluster_id].nodes)
 
     def test_cluster_head_election(self):
