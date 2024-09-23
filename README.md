@@ -1,8 +1,8 @@
 # Wireless Sensor Network (WSN) Simulation
 
 **Author**: QMC40   
-**Date**: 09/15/2024  
-**Version**: 0.5
+**Date**: 09/22/2024  
+**Version**: 0.6
 
 ## Table of Contents
 - [Project Description](#project-description)
@@ -65,7 +65,7 @@ The simulation efficiently searches for nodes using a **KD Tree**, enabling near
 ## Usage
 
 ### Running the Simulation
-**NOTE:** At the top of the main.py file there are a set of constants that may be changed before execution to modify the behavior of the simulation:
+**NOTE:** ./config/constants.py file contains a set of constants that may be changed before execution to modify the behavior of the simulation:
 
 - LOGGING - turns logging during run on/off
 - MAX_COORD - sets the maximal value for the sides of the cluster squares
@@ -143,7 +143,12 @@ If requested at the beginning of the run, the simulation will generate a plot di
 
 ## Code Structure
 
-- **main.py**: The main script that runs the simulation and handles node generation, clustering, routing, and visualization.
+- **main.py**: The main script that runs the simulation and handles visualization.
+- **wsn.py**: Wireless sensor network module that handles network creation, node generation, and routing.
+- **node.py**: Node module that handles node class and associated methods.
+- **cluster.py**: Cluster module handles clustering and cluster head election.
+- **config/constants.py**: sets constants for the simulation.
+- **logging_config/logger.py**: sets up and handles logging tasks for the simulation.
 
 **Key Components**:
 - **Node class**: Represents each sensor node with attributes like position, range, energy, and processing power. Also includes methods for calculating distances between nodes.
