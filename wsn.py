@@ -4,7 +4,7 @@
     Date: 09/22/2024
     Version: 0.6
 
-    Description: This file contains the main code for the Wireless Sensor Network (WSN) simulation.
+    Description: This file contains the WSN class for the Wireless Sensor Network (WSN) simulation.
 
     See the main README.md file for detailed information, installation instructions, and usage.
 """
